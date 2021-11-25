@@ -1,0 +1,4 @@
+# Exclude executable
+/bin/*
+*.o
+*private_id.txt
