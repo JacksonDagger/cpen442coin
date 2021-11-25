@@ -12,5 +12,9 @@ DEPS = cpen442coin.h, sha256.h
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $(LFLAGS) $@ $< $(CFLAGS)
+
 cpu_miner: cpu_miner.o cpen442coin.o sha256.o
 	$(CC) $(LFLAGS) -o $(BIN_DIR)/cpu_miner cpu_miner.o cpen442coin.o sha256.o
+	
+single_miner: single_miner.o cpen442coin.o sha256.o
+	$(CC) $(LFLAGS) -o $(BIN_DIR)/single_miner single_miner.o cpen442coin.o sha256.o
