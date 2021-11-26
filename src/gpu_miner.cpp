@@ -4,7 +4,7 @@
 * Copyright:
 * Disclaimer: This code is presented "as is" without any guarantees.
 * Details:    Mine a single CPEN442 coin for assignment 4 at default difficulty
-* and preceding coin hahs
+* and preceding coin hash
 *********************************************************************/
 
 #include <stdio.h>
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     //hipMalloc((void**)&found, sizeof(unsigned int));
 
     hipLaunchKernelGGL(cpen442coin_kernel, dim3(BLOCKS, BLOCKS), dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y),
-        0, 0, init, difficulty, prec_bytes, &ret, &found);
+        0, 0, init, difficulty, prec_bytes, ret, &found);
     hipDeviceSynchronize();
         
     if (found) {

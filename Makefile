@@ -17,19 +17,18 @@ ifeq (,$(HIP_PATH))
 endif
 HIPCC=$(HIP_PATH)/bin/hipcc
 HIP_PLATFORM=$(shell $(HIP_PATH)/bin/hipconfig --compiler)
-HIP_H=/opt/rocm-4.5.0/hip/include
-HIPCC_FLAGS = -I$(HIP_H)
+HIPCC_FLAGS = -I$(SRC_DIR) -fgpu-rdc --hip-link
 
 TARGET=hcc
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
 	$(CPP) -c $(LFLAGS) $< $(CPPFLAGS) -o $@
 
-$(BUILD_DIR)/gpu_miner.o: $(SRC_DIR)/gpu_miner.cpp
+$(BUILD_DIR)/%.obj: $(SRC_DIR)/%.cpp $(DEPS)
 	$(HIPCC) -g $< $(HIPCC_FLAGS) -o $@
 
-gpu_miner: $(BUILD_DIR)/gpu_miner.o $(BUILD_DIR)/cpen442coin.o $(BUILD_DIR)/sha256.o
-	$(HIPCC) -o $(BIN_DIR)/gpu_miner $(BUILD_DIR)/gpu_miner.o $(BUILD_DIR)/cpen442coin.o $(BUILD_DIR)/sha256.o
+gpu_miner: $(BUILD_DIR)/gpu_miner.obj $(BUILD_DIR)/cpen442coin.obj $(BUILD_DIR)/sha256.obj
+	$(HIPCC) $(HIPCC_FLAGS) -o $(BIN_DIR)/gpu_miner $(BUILD_DIR)/gpu_miner.obj $(BUILD_DIR)/cpen442coin.obj $(BUILD_DIR)/sha256.obj
 
 cpu_miner: $(BUILD_DIR)/cpu_miner.o $(BUILD_DIR)/cpen442coin.o $(BUILD_DIR)/sha256.o
 	$(CPP) $(LFLAGS) -o $(BIN_DIR)/cpu_miner $(BUILD_DIR)/cpu_miner.o $(BUILD_DIR)/cpen442coin.o $(BUILD_DIR)/sha256.o
@@ -39,4 +38,5 @@ single_miner: $(BUILD_DIR)/single_miner.o $(BUILD_DIR)/cpen442coin.o $(BUILD_DIR
 
 clean:
 	rm -f $(BUILD_DIR)/*.o
+	rm -f $(BUILD_DIR)/*.obj
 	rm -f $(BIN_DIR)/*

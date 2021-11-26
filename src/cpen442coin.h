@@ -27,6 +27,6 @@ typedef struct thread_data {
     unsigned int res;
 } thead_data;
 
-unsigned long check_hash(const BYTE hash[], unsigned int difficulty);
-void find_long_blob(void *arg);
+__device__ unsigned long check_hash(const BYTE hash[], unsigned int difficulty);
+__device__ void find_long_blob(void *arg);
 void print_bytes(BYTE bytes[], unsigned long len);
