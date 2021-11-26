@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
         thread_args[i].max = BATCHSIZE;
         thread_args[i].res = 0;
 
-        pthread_create(&threads[i], NULL, (void *) find_long_blob, (void *)&(thread_args[i]));
+        pthread_create(&threads[i], NULL, (void* (*)(void*)) find_long_blob, (void *)&(thread_args[i]));
     }
 
     for (int i = 0; i < NUM_THREADS; i++){

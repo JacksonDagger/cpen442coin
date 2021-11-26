@@ -59,8 +59,8 @@ void find_long_blob(void *arg)
 
     // for efficiency, only update hash once
     sha256_init(&start_ctx);
-    sha256_update(&start_ctx, COIN_PREF1, strlen(COIN_PREF1));
-    sha256_update(&start_ctx, COIN_PREF2, strlen(COIN_PREF2));
+    sha256_update(&start_ctx, (BYTE *) COIN_PREF1, strlen(COIN_PREF1));
+    sha256_update(&start_ctx, (BYTE *) COIN_PREF2, strlen(COIN_PREF2));
     sha256_update(&start_ctx, preceeding, SHA256_STRLEN);
     
     BYTE test_hash[SHA256_BLOCK_SIZE];
