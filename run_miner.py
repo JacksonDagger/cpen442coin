@@ -18,17 +18,34 @@ def cpen442coinhash(preceeding, blob):
     h.update(miner_id.encode())
     return h.hexdigest()
 
-def difficulty_pass(preceeding, blob):
+def difficulty_check(preceeding, blob):
     hash = cpen442coinhash(preceeding, blob)
     difficulty = 0
-    for i in range(length(hash)):
+    for i in range(len(hash)):
         if hash[i] == '0':
             difficulty += 1
         else:
             break
     return difficulty
 
+def send_coin(blob, coinlogfileName, coinsmined=0):
+    b64 = b64encode(bytes.fromhex(blob)).decode()
+    data = {
+    "coin_blob":b64,
+    "id_of_miner":miner_id
+    }
+    response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
+    data["code"] = response.status_code
+    data["coinsmined"] = coinsmined
+    data["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
+
+    with open(coinlogfileName, "a") as coinlogfile:
+        coinlogfile.write(json.dumps(data))
+        coinlogfile.write("\n")
+
 def main():
+    binpath = "./bin/cpu_miner"
+
     log = {}
     log["hashrate"] = 0
     log["coinrate"] = 0
@@ -38,9 +55,12 @@ def main():
     coinlogfileName = "logs/cpen442coinmines" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
     
     lastCoin = "00000000002dee43c5ded98ccf60d2e7981030d96091325844b0b9d29e8e4278"
+    incDifficulty = 8
     difficulty = 11
+    foundblob = ""
 
     while(True):
+        oldCoin = lastCoin
         try:
             lastCoinResponseStr = requests.post("http://cpen442coin.ece.ubc.ca/last_coin")
             lastCoin = lastCoinResponseStr.json()["coin_id"]
@@ -50,27 +70,26 @@ def main():
         except:
             pass
 
-        args = ["./parallel_miner", lastCoin, str(difficulty)]
-        output = subprocess.run(args, capture_output=True)
+        if lastCoin != oldCoin:
+            incDifficulty = 7 if difficulty > 7 else difficulty
+            foundblob = ""
+        elif difficulty < incDifficulty:
+            send_coin(foundblob, coinlogfileName, log["coinsmined"])
+
         log["lastcoin"] = lastCoin
         log["difficulty"] = difficulty
+        log["incDifficulty"] = incDifficulty
+
+        args = [binpath, lastCoin, str(incDifficulty)]
+        output = subprocess.run(args, capture_output=True)
         ret = output.stdout.decode()
 
         if "success:" in ret:
             blob = ret[len("success:"):]
-            b64 = b64encode(bytes.fromhex(blob)).decode()
-            data = {
-            "coin_blob":b64,
-            "id_of_miner":miner_id
-            }
-            response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
-            data["code"] = response.status_code
+            difFound = difficulty_check(lastCoin, blob)
+            incDifficulty = difFound + 1
+            foundblob = blob
             log["coinsmined"] += 1
-            data["coinsmined"] = log["coinsmined"]
-
-            with open(coinlogfileName, "a") as coinlogfile:
-                coinlogfile.write(json.dumps(data))
-                coinlogfile.write("\n")
         else:
             log["hashrate"] = float(ret.split()[-1])
             log["coinrate"] = 60*60*log["hashrate"]/(2**(4*difficulty))
@@ -85,5 +104,4 @@ def main():
         print(outstr, end='\r')
 
 if __name__ == "__main__":
-    # cpen442coinhash("0000000000b6c5adad1665131871458fc1217306af9e79153a42eb4ed4b6b7b6", "7089F34E1D29610B")
     main()
