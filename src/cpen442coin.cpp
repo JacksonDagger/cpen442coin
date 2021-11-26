@@ -16,13 +16,23 @@
 
 #include "sha256.h"
 #include "cpen442coin.h"
+#include "hip/hip_runtime.h"
 
-#define BLOB_LEN 8
-#define COIN_PREF1 "CPEN 442 Coin"
-#define COIN_PREF2 "2021"
+#define BLOB_LEN        8
+#define COIN_PREF1      "CPEN 442 Coin"
+#define COIN_PREF2      "2021"
+#define COIN_PREF1_LEN  13
+#define COIN_PREF2_LEN  4
 
 #define MINER_ID_LEN SHA256_STRLEN
 
+#ifdef GPU_CODE
+    #define MEMCPY(dest, src, len) hipMemcpyDtoD(dest, src, len)
+    #define LOC __device__
+#else
+    #define MEMCPY(dest, src, len) memcpy(dest, src, len)
+    #define LOC __host__
+#endif
 
 /*
  * Function: find_long_blob
@@ -37,7 +47,7 @@
  *
  *   returns: 0 if successful and the number of iterations otherwise
  */
-void find_long_blob(void *arg)
+__device__ __host__ void find_long_blob(void *arg)
 {
     struct thread_data *tdata=(struct thread_data *)arg;
     BYTE start_ret_bytes[BLOB_SIZE];
@@ -59,8 +69,8 @@ void find_long_blob(void *arg)
 
     // for efficiency, only update hash once
     sha256_init(&start_ctx);
-    sha256_update(&start_ctx, (BYTE *) COIN_PREF1, strlen(COIN_PREF1));
-    sha256_update(&start_ctx, (BYTE *) COIN_PREF2, strlen(COIN_PREF2));
+    sha256_update(&start_ctx, (BYTE *) COIN_PREF1, COIN_PREF1_LEN);
+    sha256_update(&start_ctx, (BYTE *) COIN_PREF2, COIN_PREF2_LEN);
     sha256_update(&start_ctx, preceeding, SHA256_STRLEN);
     
     BYTE test_hash[SHA256_BLOCK_SIZE];
@@ -83,11 +93,11 @@ void find_long_blob(void *arg)
         {
             memcpy(tdata->start_ret_bytes, test_blob.bytes, BLOB_SIZE);
             tdata->res = 0;
-            pthread_exit(0);
+            return;
         }
     }
     tdata->res = i > 0? i : 1;
-    pthread_exit(0);
+    return;
 }
 
 /*
@@ -100,7 +110,7 @@ void find_long_blob(void *arg)
  *
  *   returns: 0 if successful
  */
-unsigned long check_hash(const BYTE hash[], unsigned int difficulty)
+__device__ __host__ unsigned long check_hash(const BYTE hash[], unsigned int difficulty)
 {
     unsigned long mask = 1;
     mask <<= difficulty;
@@ -117,7 +127,7 @@ unsigned long check_hash(const BYTE hash[], unsigned int difficulty)
  *   bytes: bytes to be printed
  *   len: number of bytes to be printed (on user to check it doesn't exceed the length of bytes)
  */
-void print_bytes(BYTE bytes[], unsigned long len) {
+__host__ void print_bytes(BYTE bytes[], unsigned long len) {
     for (unsigned int i = 0; i < len; i++) {
         printf("%02X", bytes[i]);
     }

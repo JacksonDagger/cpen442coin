@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include "sha256.h"
+#include "hip/hip_runtime.h"
 
 /****************************** MACROS ******************************/
 #define ROTLEFT(a,b) (((a) << (b)) | ((a) >> (32-(b))))
@@ -29,7 +30,7 @@
 #define SIG1(x) (ROTRIGHT(x,17) ^ ROTRIGHT(x,19) ^ ((x) >> 10))
 
 /*********************** FUNCTION DEFINITIONS ***********************/
-void sha256_transform(SHA256_CTX *ctx, const BYTE data[])
+__device__ __host__ void sha256_transform(SHA256_CTX *ctx, const BYTE data[])
 {
 	/**************************** VARIABLES *****************************/
 	const WORD k[64] = {
@@ -81,7 +82,7 @@ void sha256_transform(SHA256_CTX *ctx, const BYTE data[])
 	ctx->state[7] += h;
 }
 
-void sha256_init(SHA256_CTX *ctx)
+__device__ __host__ void sha256_init(SHA256_CTX *ctx)
 {
 	ctx->datalen = 0;
 	ctx->bitlen = 0;
@@ -95,7 +96,7 @@ void sha256_init(SHA256_CTX *ctx)
 	ctx->state[7] = 0x5be0cd19;
 }
 
-void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len)
+__device__ __host__ void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len)
 {
 	WORD i;
 
@@ -110,7 +111,7 @@ void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len)
 	}
 }
 
-void sha256_final(SHA256_CTX *ctx, BYTE hash[])
+__device__ __host__ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 {
 	WORD i;
 
@@ -127,7 +128,10 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 		while (i < 64)
 			ctx->data[i++] = 0x00;
 		sha256_transform(ctx, ctx->data);
-		memset(ctx->data, 0, 56);
+		for (int i = 0; i < 56; i++){
+			ctx->data[i] = 0;
+		}
+		// memset(ctx->data, 0, 56);
 	}
 
 	// Append to the padding the total message's length in bits and transform.
