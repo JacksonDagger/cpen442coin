@@ -1,4 +1,4 @@
-from os import error
+import os
 import requests
 from base64 import b64encode, b64decode
 import subprocess
@@ -51,9 +51,14 @@ def main():
     log["coinrate"] = 0
     log["coinsmined"] = 0
 
+    logdir = "logs"
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+
     logfileName = "logs/cpen442coinrun" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
-    coinlogfileName = "logs/cpen442coinmines" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
-    
+    coinlogfileName = "logs/coinsmined" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
+    dumpfileName ="logs/stdoutdump" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
+
     lastCoin = "00000000002dee43c5ded98ccf60d2e7981030d96091325844b0b9d29e8e4278"
     incDifficulty = 8
     difficulty = 11
@@ -71,9 +76,10 @@ def main():
             pass
 
         if lastCoin != oldCoin:
-            incDifficulty = 7 if difficulty > 7 else difficulty
+            incDifficulty = 8 if difficulty > 8 else difficulty
             foundblob = ""
         elif difficulty < incDifficulty:
+            log["coinsmined"] += 1
             send_coin(foundblob, coinlogfileName, log["coinsmined"])
 
         log["lastcoin"] = lastCoin
@@ -89,7 +95,6 @@ def main():
             difFound = difficulty_check(lastCoin, blob)
             incDifficulty = difFound + 1
             foundblob = blob
-            log["coinsmined"] += 1
         else:
             log["hashrate"] = float(ret.split()[-1])
             log["coinrate"] = 60*60*log["hashrate"]/(2**(4*difficulty))
@@ -98,6 +103,9 @@ def main():
             log["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
             logfile.write(json.dumps(log))
             logfile.write("\n")
+        with open(dumpfileName, "a") as dumpfile:
+            dumpfile.write(ret)
+            dumpfile.write("\n")
 
         outstr = "coinrate: " + str(round(log["coinrate"], 4)) + ", coinsmined: " + str(log["coinsmined"]) + ", difficulty: " + str(log["difficulty"])
         sys.stdout.flush()
