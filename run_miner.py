@@ -58,11 +58,21 @@ def main():
     logfileName = "logs/cpen442coinrun" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
     coinlogfileName = "logs/coinsmined" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
     dumpfileName ="logs/stdoutdump" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
+    checkpointFileName = "checkpoint.json"
 
     lastCoin = "00000000002dee43c5ded98ccf60d2e7981030d96091325844b0b9d29e8e4278"
     incDifficulty = 8
     difficulty = 11
     foundblob = ""
+
+    try:
+        with open(checkpointFileName, "r") as checkpoint:
+            chk = json.load(checkpoint)
+            if "lastCoin" in chk and "blob" in chk:
+                lastCoin = chk["lastCoin"]
+                foundblob = chk["blob"]
+    except Exception as E:
+        print(E)
 
     while(True):
         oldCoin = lastCoin
@@ -99,6 +109,12 @@ def main():
             log["hashrate"] = float(ret.split()[-1])
             log["coinrate"] = 60*60*log["hashrate"]/(2**(4*difficulty))
         
+        with open(checkpointFileName, "w") as checkpoint:
+            chk = {
+                "lastCoin": lastCoin,
+                "blob": foundblob
+            }
+            json.dump(chk, checkpoint)
         with open(logfileName, "a") as logfile:
             log["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
             logfile.write(json.dumps(log))

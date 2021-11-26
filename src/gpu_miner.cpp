@@ -52,7 +52,7 @@ cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYT
     }
 }
 
-__host__ int main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     time_t start_time = time(0);
     srand(time(0));

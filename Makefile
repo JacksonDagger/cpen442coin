@@ -14,15 +14,18 @@ ifeq (,$(HIP_PATH))
 endif
 HIPCC=$(HIP_PATH)/bin/hipcc
 HIP_PLATFORM=$(shell $(HIP_PATH)/bin/hipconfig --compiler)
-HIPCC_FLAGS = -I$(SRC) -I. -fgpu-rdc
+HIPCC_FLAGS = -I$(SRC) -I.
 
 TARGET=main
 
+$(BUILD_DIR)/cpen442coin_gpu.o: $(SRC)/cpen442coin.cpp $(DEPS)
+	$(HIPCC) -c -g $< $(HIPCC_FLAGS) -D GPU_CODE=1 -o $@
+
+$(BUILD_DIR)/gpu_miner.o: $(SRC)/gpu_miner.cpp $(DEPS)
+	$(HIPCC) -c -g $< $(HIPCC_FLAGS) -D GPU_CODE=1 -o $@
+
 $(BUILD_DIR)/%.o: $(SRC)/%.cpp $(DEPS)
 	$(HIPCC) -c $(LFLAGS) $< $(HIPCC_FLAGS) -o $@
-
-$(BUILD_DIR)/cpen442coin_gpu.o: $(SRC)/cpen442coin.cpp $(DEPS)
-	$(HIPCC) -g $< $(HIPCC_FLAGS) -D GPU_CODE=1 -o $@
 
 gpu_miner: $(BUILD_DIR)/gpu_miner.o $(BUILD_DIR)/cpen442coin_gpu.o $(BUILD_DIR)/sha256.o
 	$(HIPCC) $(HIPCC_FLAGS) -o $(BIN_DIR)/gpu_miner $(BUILD_DIR)/gpu_miner.o $(BUILD_DIR)/cpen442coin_gpu.o $(BUILD_DIR)/sha256.o
