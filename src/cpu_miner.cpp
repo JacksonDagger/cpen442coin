@@ -18,7 +18,6 @@
 
 #include "cpen442coin.h"
 
-#define ID_OF_MINER "e8d2dadb3c5ead451b8943cff5ef909ef0f3de313c4d274d85d2d3c8a5a30c1f"
 #define NUM_THREADS 16
 #define BATCHSIZE 16777216
 

@@ -12,6 +12,13 @@
 #define BLOB_SIZE 8
 #define SHA256_STRLEN 2*SHA256_BLOCK_SIZE
 
+#define ID_OF_MINER "e8d2dadb3c5ead451b8943cff5ef909ef0f3de313c4d274d85d2d3c8a5a30c1f"
+#define BLOCKS 512
+#define THREADS_PER_BLOCK_X 8
+#define THREADS_PER_BLOCK_Y 8
+#define GPU_BATCHSIZE 256
+#define BATCH_SHIFT 8
+
 union blob {
     BYTE bytes[BLOB_SIZE]; 
     uint64_t num;
@@ -28,5 +35,6 @@ typedef struct thread_data {
 } thead_data;
 
 __device__ __host__ unsigned long check_hash(const BYTE hash[], unsigned int difficulty);
-__device__ __host__ void find_long_blob(void *arg);
+__host__ void find_long_blob(void *arg);
+__global__ void  cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYTE* res);
 __host__ void print_bytes(BYTE bytes[], unsigned long len);

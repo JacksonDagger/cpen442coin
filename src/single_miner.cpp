@@ -20,7 +20,6 @@
 
 #define DIFFICULTY 32
 #define PRECEDING_COIN "a9c1ae3f4fc29d0be9113a42090a5ef9fdef93f5ec4777a008873972e60bb532"
-#define ID_OF_MINER "0d745abd481186eb9be9db4c5d0da09c74725e598d5fcb4f71e6c47577efb474"
 #define BATCHSIZE 16777216 // 2^24 meaning we expect to find a coin once every 256 batches
 
 

@@ -13,10 +13,10 @@
 *********************************************************************/
 
 /*************************** HEADER FILES ***************************/
+#include "hip/hip_runtime.h"
 #include <stdlib.h>
 #include <memory.h>
 #include "sha256.h"
-#include "hip/hip_runtime.h"
 
 /****************************** MACROS ******************************/
 #define ROTLEFT(a,b) (((a) << (b)) | ((a) >> (32-(b))))

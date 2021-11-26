@@ -19,10 +19,10 @@ HIPCC_FLAGS = -I$(SRC) -I.
 TARGET=main
 
 $(BUILD_DIR)/cpen442coin_gpu.o: $(SRC)/cpen442coin.cpp $(DEPS)
-	$(HIPCC) -c -g $< $(HIPCC_FLAGS) -D GPU_CODE=1 -o $@
+	$(HIPCC) -c -g $< $(HIPCC_FLAGS) -o $@
 
-$(BUILD_DIR)/gpu_miner.o: $(SRC)/gpu_miner.cpp $(DEPS)
-	$(HIPCC) -c -g $< $(HIPCC_FLAGS) -D GPU_CODE=1 -o $@
+$(BUILD_DIR)/gpu_miner.o: $(SRC)/gpu_miner.cpp $(BUILD_DIR)/cpen442coin_gpu.o $(DEPS)
+	$(HIPCC) -L$(SRC) -g $< $(HIPCC_FLAGS) -O3 -o $@
 
 $(BUILD_DIR)/%.o: $(SRC)/%.cpp $(DEPS)
 	$(HIPCC) -c $(LFLAGS) $< $(HIPCC_FLAGS) -o $@
