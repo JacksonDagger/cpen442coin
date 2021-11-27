@@ -3,6 +3,7 @@ import requests
 from base64 import b64encode, b64decode
 import subprocess
 from datetime import datetime, timedelta
+from time import sleep
 import json
 import sys
 from Crypto.Hash import SHA256
@@ -28,12 +29,16 @@ def difficulty_check(preceeding, blob):
             break
     return difficulty
 
-def send_coin(blob, coinlogfileName, coinNumFilename, coinsmined=0):
+def send_coin(blob, coinlogfileName, coinNumFilename, dumpfileName, coinsmined=0, wait=0):
     b64 = b64encode(bytes.fromhex(blob)).decode()
     data = {
     "coin_blob":b64,
     "id_of_miner":miner_id
     }
+
+    if wait > 0:
+        logEvent(dumpfileName, "sleep", str(wait))
+        sleep(wait)
     response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
 
     coinsmined += 1
@@ -105,18 +110,26 @@ def main():
     difficulty = 10
     foundBlob = ""
     foundDif = 0
+    lastCoinTime = 0
+    period = 60*60
+
+    req_interval = 1
+    req_num = 0
 
     while(True):
         oldCoin = lastCoin
-        try:
-            lastCoinResponseStr = requests.post("http://cpen442coin.ece.ubc.ca/last_coin")
-            lastCoin = lastCoinResponseStr.json()["coin_id"]
+        if not (req_num % req_interval):
+            try:
+                lastCoinResponseStr = requests.post("http://cpen442coin.ece.ubc.ca/last_coin")
+                lastCoin = lastCoinResponseStr.json()["coin_id"]
+                lastCoinTime = lastCoinResponseStr.json()["time_stamp"]
 
-            difficultyResponseStr = requests.post("http://cpen442coin.ece.ubc.ca/difficulty")
-            difficulty = int(difficultyResponseStr.json()["number_of_leading_zeros"])
-        except Exception as e:
-            logEvent(dumpfileName, "server error", str(e))
-            pass
+                difficultyResponseStr = requests.post("http://cpen442coin.ece.ubc.ca/difficulty")
+                difficulty = int(difficultyResponseStr.json()["number_of_leading_zeros"])
+            except Exception as e:
+                logEvent(dumpfileName, "server error", str(e) + " req interval:" + str(req_interval))
+                req_interval *= 2
+                pass
 
         if lastCoin != oldCoin:
             evenDif = difficulty - difficulty % 2
@@ -135,8 +148,35 @@ def main():
             foundBlob = ret[len("success:"):]
             foundDif = difficulty_check(lastCoin, foundBlob)
             if foundDif >= difficulty:
-                send_coin(foundBlob, coinlogfileName, coinNumFilename, log["coinsmined"])
+                b64 = b64encode(bytes.fromhex(foundBlob)).decode()
+                data = {
+                "coin_blob":b64,
+                "id_of_miner":miner_id
+                }
 
+                wait = period - (datetime.now().timestamp() - lastCoinTime)
+                if wait > 0:
+                    logEvent(dumpfileName, "sleep", str(wait))
+                    sleep(wait)
+                response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
+                
+                log["coinsmined"] += 1
+
+                data["code"] = response.status_code
+                data["coinsmined"] = log["coinsmined"]
+                data["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
+
+                with open(coinlogfileName, "a") as coinlogfile:
+                    coinlogfile.write(json.dumps(data))
+                    coinlogfile.write("\n")
+                with open(coinNumFilename, "w") as coinNumFile:
+                    json.dump(coinNumFile, {"coinsmined": coinsmined})
+            elif foundDif < evenDif:
+                blobLog = log
+                blobLog["foundBlob"] = foundBlob
+                blobLog["foundDif"] = foundDif
+                blobLog["hash"] = cpen442coinhash(lastCoin, foundBlob)
+                logEvent(dumpfileName, "bad blob", str(blobLog))
         else:
             log["hashrate"] = float(ret.split()[-1])
             log["coinrate"] = 60*60*log["hashrate"]/(2**(4*difficulty))
@@ -149,8 +189,8 @@ def main():
             logfile.write("\n")
 
         logEvent(dumpfileName, "stdout", ret)
-
         printLogStr(log)
+        req_num += 1
 
 if __name__ == "__main__":
     main()
