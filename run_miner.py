@@ -29,32 +29,6 @@ def difficulty_check(preceeding, blob):
             break
     return difficulty
 
-def send_coin(blob, coinlogfileName, coinNumFilename, dumpfileName, coinsmined=0, wait=0):
-    b64 = b64encode(bytes.fromhex(blob)).decode()
-    data = {
-    "coin_blob":b64,
-    "id_of_miner":miner_id
-    }
-
-    if wait > 0:
-        logEvent(dumpfileName, "sleep", str(wait))
-        sleep(wait)
-    response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
-
-    coinsmined += 1
-    
-    data["code"] = response.status_code
-    data["coinsmined"] = coinsmined
-    data["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
-
-    with open(coinlogfileName, "a") as coinlogfile:
-        coinlogfile.write(json.dumps(data))
-        coinlogfile.write("\n")
-    with open(coinNumFilename, "w") as coinNumFile:
-        json.dump(coinNumFile, {"coinsmined": coinsmined})
-
-    return coinsmined
-
 def strRound(num, digits):
     formatStr = "{:0." + str(digits) + "f}"
     rNum = round(num, digits)
