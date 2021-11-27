@@ -63,7 +63,7 @@ dkms.conf
 .vscode/*
 
 # Private ID
-*/private_id.txt
+private_id.txt
 
 # Checkpoints
 checkpoint.json
