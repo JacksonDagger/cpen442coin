@@ -14,7 +14,7 @@
 
 #define ID_OF_MINER "e8d2dadb3c5ead451b8943cff5ef909ef0f3de313c4d274d85d2d3c8a5a30c1f"
 
-#define BLOCK_SHIFT 8
+#define BLOCK_SHIFT 7
 #define BLOCKS (1 << BLOCK_SHIFT) // 256
 
 #define XTHREAD_SHIFT 3
@@ -23,7 +23,7 @@
 #define YTHREAD_SHIFT 3
 #define THREADS_PER_BLOCK_Y (1 << YTHREAD_SHIFT) // 8
 
-#define BATCH_SHIFT 8
+#define BATCH_SHIFT 10
 #define GPU_BATCHSIZE (1 << BATCH_SHIFT) // 256
 
 #define WIDTH_SHIFT (BLOCK_SHIFT + YTHREAD_SHIFT) // 11

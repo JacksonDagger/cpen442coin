@@ -109,6 +109,31 @@ def main():
             evenDif = difficulty - difficulty % 2
             foundBlob = ""
             foundDif = 0
+            
+        if foundDif >= difficulty:
+            b64 = b64encode(bytes.fromhex(foundBlob)).decode()
+            data = {
+            "coin_blob":b64,
+            "id_of_miner":miner_id
+            }
+
+            wait = period - (datetime.now().timestamp() - lastCoinTime)
+            if wait > 0:
+                logEvent(dumpfileName, "sleep", str(wait))
+                sleep(wait)
+            response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
+            
+            log["coinsmined"] += 1
+
+            data["code"] = response.status_code
+            data["coinsmined"] = log["coinsmined"]
+            data["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
+
+            with open(coinlogfileName, "a") as coinlogfile:
+                coinlogfile.write(json.dumps(data))
+                coinlogfile.write("\n")
+            with open(coinNumFilename, "w") as coinNumFile:
+                json.dump(coinNumFile, {"coinsmined": log["coinsmined"]})
 
         log["lastcoin"] = lastCoin
         log["difficulty"] = difficulty
@@ -121,31 +146,8 @@ def main():
         if "success:" in ret:
             foundBlob = ret[len("success:"):]
             foundDif = difficulty_check(lastCoin, foundBlob)
-            if foundDif >= difficulty:
-                b64 = b64encode(bytes.fromhex(foundBlob)).decode()
-                data = {
-                "coin_blob":b64,
-                "id_of_miner":miner_id
-                }
-
-                wait = period - (datetime.now().timestamp() - lastCoinTime)
-                if wait > 0:
-                    logEvent(dumpfileName, "sleep", str(wait))
-                    sleep(wait)
-                response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
-                
-                log["coinsmined"] += 1
-
-                data["code"] = response.status_code
-                data["coinsmined"] = log["coinsmined"]
-                data["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
-
-                with open(coinlogfileName, "a") as coinlogfile:
-                    coinlogfile.write(json.dumps(data))
-                    coinlogfile.write("\n")
-                with open(coinNumFilename, "w") as coinNumFile:
-                    json.dump(coinNumFile, {"coinsmined": coinsmined})
-            elif foundDif < evenDif:
+            
+            if foundDif < evenDif:
                 blobLog = log
                 blobLog["foundBlob"] = foundBlob
                 blobLog["foundDif"] = foundDif
