@@ -103,7 +103,7 @@ __host__ void find_long_blob(void *arg)
 __global__ void 
 cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYTE* res) 
 { 
-    init += (hipBlockDim_x * hipBlockIdx_x + hipThreadIdx_x + hipBlockDim_y * hipBlockIdx_y + hipThreadIdx_y) << BATCH_SHIFT;
+    init += (((THREADS_PER_BLOCK_X * hipBlockIdx_x + hipThreadIdx_x) << WIDTH_SHIFT) + THREADS_PER_BLOCK_Y * hipBlockIdx_y + hipThreadIdx_y) << BATCH_SHIFT;
     union blob test_blob;
     test_blob.num = init;
 

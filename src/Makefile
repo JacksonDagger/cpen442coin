@@ -19,18 +19,32 @@ ifeq (${HIP_PLATFORM}, nvcc)
     CPPFLAGS += -arch=compute_20
 endif
 
-GPUMINER_SRC = $(wildcard *_g.cpp)
+UTILS_SRC = cpen442coin.cpp sha256.cpp
+GPUMINER_SRC = $(UTILS_SRC) gpu_miner.cpp
 GPUMINER_OBJ = $(addprefix ${BUILD_DIR}/,$(subst .cpp,.o, $(GPUMINER_SRC)))
-GPUMINER_BIN = ${BIN_DIR}/GPUMINER-hip
+GPUMINER_BIN = ${BIN_DIR}/gpuminer-hip
+
+CPUMINER_SRC = $(UTILS_SRC) cpu_miner.cpp
+CPUMINER_OBJ = $(addprefix ${BUILD_DIR}/,$(subst .cpp,.o, $(CPUMINER_SRC)))
+CPUMINER_BIN = ${BIN_DIR}/cpuminer-hip
 
 .PHONY: all clean run itburn
 
-all: ${GPUMINER_BIN}
+all: cpu gpu
+
+gpu: ${GPUMINER_BIN}
+
+cpu: ${CPUMINER_BIN}
 
 ${GPUMINER_BIN}: ${GPUMINER_OBJ}
+	mkdir -p ${BIN_DIR}
 	${HIPCC} ${LDFLAGS} -o ${GPUMINER_BIN} ${GPUMINER_OBJ}
 
-${BUILD_DIR}/cpen442coin_g.o: cpen442coin_g.cpp ${BUILD_DIR}/sha256_g.o $(DEPS) Makefile
+${CPUMINER_BIN}: ${CPUMINER_OBJ}
+	mkdir -p ${BIN_DIR}
+	${HIPCC} ${LDFLAGS} -o ${CPUMINER_BIN} ${CPUMINER_OBJ}
+
+${BUILD_DIR}/cpen442coin.o: cpen442coin.cpp ${BUILD_DIR}/sha256.o $(DEPS) Makefile
 	mkdir -p ${BUILD_DIR}
 	${HIPCC} ${HIP_INCLUDE} ${CPPFLAGS} -c -o $@ $<  
 
@@ -44,3 +58,4 @@ itburn:
 
 clean:
 	rm -rf ${BUILD_DIR}
+	rm -rf ${BIN_DIR}

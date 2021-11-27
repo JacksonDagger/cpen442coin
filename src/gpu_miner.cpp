@@ -25,12 +25,12 @@ int main(int argc, char *argv[])
     time_t start_time = time(0);
     srand(time(0));
     char prec_str[SHA256_STRLEN + 1] = "00000000f02eafab71af360b73b2004fb7d47094468cd87cbff4c330e6f55bad";
-    int difficulty = 11;
+    int difficulty = 10;
 
     memcpy(prec_str, argv[1], SHA256_STRLEN);
     char *a = argv[2];
     difficulty = atoi(a);
-    uint64_t init = ((uint64_t) rand() << 16);
+    uint64_t init = ((uint64_t) rand() << RAND_SHIFT);
    
     BYTE prec_bytes[SHA256_STRLEN];
     memcpy(prec_bytes, prec_str, SHA256_STRLEN);
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
         print_bytes(ret.bytes, BLOB_SIZE);
     }
     else {
-        double hashrate = ((double)GPU_BATCHSIZE*THREADS_PER_BLOCK_X*THREADS_PER_BLOCK_Y)/(time(0) - start_time);
+        double hashrate = ((double) RUN_SIZE) / (time(0) - start_time);
         printf("hash rate (hps): %.4lf", hashrate);
     }
     return 0;

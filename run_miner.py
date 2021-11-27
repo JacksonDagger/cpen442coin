@@ -2,7 +2,7 @@ import os
 import requests
 from base64 import b64encode, b64decode
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import sys
 from Crypto.Hash import SHA256
@@ -28,13 +28,16 @@ def difficulty_check(preceeding, blob):
             break
     return difficulty
 
-def send_coin(blob, coinlogfileName, coinsmined=0):
+def send_coin(blob, coinlogfileName, coinNumFilename, coinsmined=0):
     b64 = b64encode(bytes.fromhex(blob)).decode()
     data = {
     "coin_blob":b64,
     "id_of_miner":miner_id
     }
     response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
+
+    coinsmined += 1
+    
     data["code"] = response.status_code
     data["coinsmined"] = coinsmined
     data["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
@@ -42,37 +45,66 @@ def send_coin(blob, coinlogfileName, coinsmined=0):
     with open(coinlogfileName, "a") as coinlogfile:
         coinlogfile.write(json.dumps(data))
         coinlogfile.write("\n")
+    with open(coinNumFilename, "w") as coinNumFile:
+        json.dump(coinNumFile, {"coinsmined": coinsmined})
+
+    return coinsmined
+
+def strRound(num, digits):
+    formatStr = "{:0." + str(digits) + "f}"
+    rNum = round(num, digits)
+    return formatStr.format(rNum)
+
+def printLogStr(log):
+    outstr = "hashrate (Mh/s):" +strRound(log["hashrate"]/1000000, 2) + \
+        ", coinrate (c/h):" + strRound(log["coinrate"], 4) + \
+        ", predcoins:" + str(round(log["predcoins"])) + \
+        ", coinsmined:" + str(log["coinsmined"]) + \
+        ", dif:" + str(log["difficulty"])
+    sys.stdout.flush()
+    print(outstr, end='\r')
+
+def logEvent(dumpfileName, eventType, details):
+    eventDetails = {}
+    eventDetails["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H-%M-%S")
+    eventDetails["eventType"] = eventType
+    eventDetails["details"] = details
+
+    with open(dumpfileName, "a") as dumpfile:
+        dumpfile.write(json.dumps(eventDetails))
+        dumpfile.write("\n")
+
 
 def main():
-    binpath = "./bin/cpu_miner"
+    binpath = "./bin/gpuminer-hip"
+    logfileName = "logs/coin442tries" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
+    coinlogfileName = "logs/coin442mines" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
+    dumpfileName = "logs/logdump" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
+    coinNumFilename = "logs/coinsmined.json"
 
     log = {}
     log["hashrate"] = 0
     log["coinrate"] = 0
-    log["coinsmined"] = 0
+    log["predcoins"] = 0
+
+    try:
+        with open(coinNumFilename, "r") as coinNumFile:
+            log["coinsmined"] = json.load(coinNumFile)["coinsmined"]
+    except Exception as e:
+        logEvent(dumpfileName, "json load error", str(e))
+        log["coinsmined"] = 0
 
     logdir = "logs"
     if not os.path.exists(logdir):
         os.makedirs(logdir)
 
-    logfileName = "logs/cpen442coinrun" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
-    coinlogfileName = "logs/coinsmined" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
-    dumpfileName ="logs/stdoutdump" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
-    checkpointFileName = "checkpoint.json"
+    contestEnd = datetime(2021, 12, 1, 21, 0, 0)
 
     lastCoin = "00000000002dee43c5ded98ccf60d2e7981030d96091325844b0b9d29e8e4278"
-    incDifficulty = 8
-    difficulty = 11
-    foundblob = ""
-
-    try:
-        with open(checkpointFileName, "r") as checkpoint:
-            chk = json.load(checkpoint)
-            if "lastCoin" in chk and "blob" in chk:
-                lastCoin = chk["lastCoin"]
-                foundblob = chk["blob"]
-    except Exception as E:
-        print(E)
+    evenDif = 8
+    difficulty = 10
+    foundBlob = ""
+    foundDif = 0
 
     while(True):
         oldCoin = lastCoin
@@ -82,50 +114,43 @@ def main():
 
             difficultyResponseStr = requests.post("http://cpen442coin.ece.ubc.ca/difficulty")
             difficulty = int(difficultyResponseStr.json()["number_of_leading_zeros"])
-        except:
+        except Exception as e:
+            logEvent(dumpfileName, "server error", str(e))
             pass
 
         if lastCoin != oldCoin:
-            incDifficulty = 8 if difficulty > 8 else difficulty
-            foundblob = ""
-        elif difficulty < incDifficulty:
-            log["coinsmined"] += 1
-            send_coin(foundblob, coinlogfileName, log["coinsmined"])
+            evenDif = difficulty - difficulty % 2
+            foundBlob = ""
+            foundDif = 0
 
         log["lastcoin"] = lastCoin
         log["difficulty"] = difficulty
-        log["incDifficulty"] = incDifficulty
+        log["evenDif"] = evenDif
 
-        args = [binpath, lastCoin, str(incDifficulty)]
+        args = [binpath, lastCoin, str(evenDif)]
         output = subprocess.run(args, capture_output=True)
         ret = output.stdout.decode()
 
         if "success:" in ret:
-            blob = ret[len("success:"):]
-            difFound = difficulty_check(lastCoin, blob)
-            incDifficulty = difFound + 1
-            foundblob = blob
+            foundBlob = ret[len("success:"):]
+            foundDif = difficulty_check(lastCoin, foundBlob)
+            if foundDif >= difficulty:
+                send_coin(foundBlob, coinlogfileName, coinNumFilename, log["coinsmined"])
+
         else:
             log["hashrate"] = float(ret.split()[-1])
             log["coinrate"] = 60*60*log["hashrate"]/(2**(4*difficulty))
+            hoursLeft = (contestEnd - datetime.now()) / timedelta(hours=1)
+            log["predcoins"] = hoursLeft*log["coinrate"]
         
-        with open(checkpointFileName, "w") as checkpoint:
-            chk = {
-                "lastCoin": lastCoin,
-                "blob": foundblob
-            }
-            json.dump(chk, checkpoint)
         with open(logfileName, "a") as logfile:
             log["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
             logfile.write(json.dumps(log))
             logfile.write("\n")
-        with open(dumpfileName, "a") as dumpfile:
-            dumpfile.write(ret)
-            dumpfile.write("\n")
 
-        outstr = "coinrate: " + str(round(log["coinrate"], 4)) + ", coinsmined: " + str(log["coinsmined"]) + ", difficulty: " + str(log["difficulty"])
-        sys.stdout.flush()
-        print(outstr, end='\r')
+        logEvent(dumpfileName, "stdout", ret)
+
+        printLogStr(log)
 
 if __name__ == "__main__":
     main()
