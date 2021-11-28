@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     time_t start_time = time(0);
 #endif
     float eventS;
-    
+
     srand(time(0));
     char prec_str[SHA256_STRLEN + 1] = "00000000f02eafab71af360b73b2004fb7d47094468cd87cbff4c330e6f55bad";
     int difficulty = 10;
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     hipEventElapsedTime(&eventMs, start, stop);
     eventS = eventMs/1000;
 #else
-    eventS = time(0) - start_time
+    eventS = time(0) - start_time;
 #endif
         double hashrate = ((double) RUN_SIZE) / eventS;
         printf("hash rate (hps): %.4lf", hashrate);
