@@ -15,7 +15,7 @@
 
 #define ID_OF_MINER "e8d2dadb3c5ead451b8943cff5ef909ef0f3de313c4d274d85d2d3c8a5a30c1f"
 
-#define PERF 0
+#define PERF 1
 
 #define XBLOCK_SHIFT 8
 #define XBLOCKS (1 << XBLOCK_SHIFT) // 256
