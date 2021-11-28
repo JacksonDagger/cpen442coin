@@ -59,33 +59,41 @@ def main():
     logfileName = "logs/coin442tries" + datetime.now().strftime("%Y-%m-%d--%H-%M-%S") + ".log"
     coinlogfileName = "logs/coin442mines" + datetime.now().strftime("%Y-%m-%d--%H-%M-%S") + ".log"
     dumpfileName = "logs/logdump" + datetime.now().strftime("%Y-%m-%d--%H-%M-%S") + ".log"
-    coinNumFilename = "logs/coinsmined.json"
+    stateFilename = "logs/state.json"
 
     log = {}
     log["hashrate"] = 0
     log["coinrate"] = 0
     log["predcoins"] = 0
 
+    lastCoin = "000000000039f30c6e714e3e4551f91cebea6cbbf42a0cbc0df4ea5d2c48debc"
+    evenDif = 8
+    difficulty = 10
+    foundBlob = ""
+    foundDif = 0
+    lastCoinTime = 0
+    period = 0
+
+    log["coinsmined"] = 7
+
     try:
-        with open(coinNumFilename, "r") as coinNumFile:
-            log["coinsmined"] = json.load(coinNumFile)["coinsmined"]
+        with open(stateFilename, "r") as stateFile:
+            statelog = json.load(stateFile)
+            for key in statelog.keys():
+                log[key] = statelog[key]
+            lastCoin = log["lastcoin"]
+            foundBlob = log["foundBlob"]
+            foundDif = log["foundDif"]
+            # lastCoinTime = log["l"]
     except Exception as e:
         logEvent(dumpfileName, "json load error", str(e))
-        log["coinsmined"] = 0
 
     logdir = "logs"
     if not os.path.exists(logdir):
         os.makedirs(logdir)
 
     contestEnd = datetime(2021, 12, 1, 21, 0, 0)
-
-    lastCoin = "000000000039f30c6e714e3e4551f91cebea6cbbf42a0cbc0df4ea5d2c48debc"
-    evenDif = 8
-    difficulty = 10
-    foundBlob = "94082EDD8B3C9306"
-    foundDif = 10
-    lastCoinTime = 0
-    period = 60*60
+    
 
     req_interval = 1
     req_num = 0
@@ -133,12 +141,6 @@ def main():
             with open(coinlogfileName, "a") as coinlogfile:
                 coinlogfile.write(json.dumps(data))
                 coinlogfile.write("\n")
-            try:
-                with open(coinNumFilename, "w") as coinNumFile:
-                    coindict = {"coinsmined": log["coinsmined"]}
-                    json.dump(coinNumFile, coindict)
-            except:
-                pass
 
         log["lastcoin"] = lastCoin
         log["difficulty"] = difficulty
@@ -180,6 +182,12 @@ def main():
         logEvent(dumpfileName, "stdout", ret)
         printLogStr(log)
         req_num += 1
+        try:
+            with open(stateFilename, "w") as stateFile:
+                json.dump(log, stateFile)
+        except Exception as e:
+            logEvent(dumpfileName, "error saving state", str(e))
+
 
 if __name__ == "__main__":
     main()
