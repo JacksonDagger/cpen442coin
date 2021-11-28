@@ -47,7 +47,7 @@ __host__ void launch_stream(void *arg)
     hipMemcpy((sdata->ret_dev), sdata->ret.bytes, BLOB_SIZE, hipMemcpyHostToDevice);
     hipMemcpy((sdata->prec_dev), sdata->preceeding, SHA256_STRLEN, hipMemcpyHostToDevice);
 
-    hipLaunchKernelGGL(cpen442coin_kernel, dim3(BLOCKS, BLOCKS), dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y),
+    hipLaunchKernelGGL(cpen442coin_kernel, dim3(XBLOCKS, YBLOCKS), dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y),
         0, *(sdata->stream), init, sdata->difficulty, (sdata->prec_dev), (sdata->ret_dev));
 }
 

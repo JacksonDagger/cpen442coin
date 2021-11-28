@@ -24,7 +24,17 @@
 
 int main(int argc, char *argv[])
 {
+#if PERF
+    hipEvent_t start, stop;
+    hipEventCreate(&start);
+    hipEventRecord(start, NULL);
+    hipEventCreate(&stop);
+    float eventMs = 1.0f;
+#else
     time_t start_time = time(0);
+#endif
+    float eventS;
+    
     srand(time(0));
     char prec_str[SHA256_STRLEN + 1] = "00000000f02eafab71af360b73b2004fb7d47094468cd87cbff4c330e6f55bad";
     int difficulty = 10;
@@ -82,7 +92,16 @@ int main(int argc, char *argv[])
         print_bytes(final_ret.bytes, BLOB_SIZE);
     }
     else {
-        double hashrate = ((double) RUN_SIZE) / (time(0) - start_time);
+#if PERF
+    hipEventRecord(stop, NULL);
+    hipEventSynchronize(stop);
+
+    hipEventElapsedTime(&eventMs, start, stop);
+    eventS = eventMs/1000;
+#else
+    eventS = time(0) - start_time
+#endif
+        double hashrate = ((double) RUN_SIZE) / eventS;
         printf("hash rate (hps): %.4lf", hashrate);
     }
     return 0;
