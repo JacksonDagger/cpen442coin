@@ -42,23 +42,31 @@ __host__ void launch_stream(void *arg)
 
     init = ((uint64_t) rand() << RAND_SHIFT);
 
-    BYTE *ret_bytes;
-    BYTE *prec_bytes;
-
-    hipMalloc((void**)&ret_bytes, BLOB_SIZE);
-    hipMalloc((void**)&prec_bytes, SHA256_STRLEN);
-    hipMemcpy(ret_bytes, sdata->ret.bytes, BLOB_SIZE, hipMemcpyHostToDevice);
-    hipMemcpy(prec_bytes, sdata->preceeding, SHA256_STRLEN, hipMemcpyHostToDevice);
+    hipMalloc((void**)&(sdata->ret_dev), BLOB_SIZE);
+    hipMalloc((void**)&(sdata->prec_dev), SHA256_STRLEN);
+    hipMemcpy((sdata->ret_dev), sdata->ret.bytes, BLOB_SIZE, hipMemcpyHostToDevice);
+    hipMemcpy((sdata->prec_dev), sdata->preceeding, SHA256_STRLEN, hipMemcpyHostToDevice);
 
     hipLaunchKernelGGL(cpen442coin_kernel, dim3(BLOCKS, BLOCKS), dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y),
-        0, *(sdata->stream), init, sdata->difficulty, prec_bytes, ret_bytes);
+        0, *(sdata->stream), init, sdata->difficulty, (sdata->prec_dev), (sdata->ret_dev));
+}
 
+
+__host__ void end_stream(void *arg)
+{
+    struct stream_data *sdata=(struct stream_data *)arg;
     hipStreamSynchronize(*(sdata->stream));
 
-    hipMemcpy(sdata->ret.bytes, ret_bytes, BLOB_SIZE, hipMemcpyDeviceToHost);
+    hipMemcpy(sdata->ret.bytes, (sdata->ret_dev), BLOB_SIZE, hipMemcpyDeviceToHost);
 
-    hipFree(ret_bytes);
-    hipFree(prec_bytes);
+    hipFree(sdata->ret_dev);
+    hipFree(sdata->prec_dev);
+}
+
+__host__ void run_stream(void *arg)
+{
+    launch_stream(arg);
+    end_stream(arg);
 }
 
 __global__ void 

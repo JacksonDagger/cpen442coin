@@ -20,6 +20,8 @@
 #include "hip/hip_runtime.h"
 #include "cpen442coin.h"
 
+#define THREAD 0
+
 int main(int argc, char *argv[])
 {
     time_t start_time = time(0);
@@ -37,22 +39,32 @@ int main(int argc, char *argv[])
     pthread_t threads[NUM_STREAMS];
     struct stream_data sdata[NUM_STREAMS];
     hipStream_t streams[NUM_STREAMS];
-    
+    int i, last_joined;
+    last_joined = -1;
 
-    for (int i = 0; i < NUM_STREAMS; i++){
+    for (i = 0; i < NUM_STREAMS; i++){
         hipStreamCreate(&streams[i]);
-        sdata[i].stream = &(streams[i]);
+        sdata[i].stream = &streams[i];
         sdata[i].ret.num = 0;
         memcpy(sdata[i].preceeding, prec_bytes, SHA256_STRLEN);
         sdata[i].difficulty = 4*difficulty;
 
+#if THREAD
+        if ((i - last_joined) > CONCURRENT_STREAMS) {
+            last_joined += 1;
+            pthread_join(threads[last_joined], NULL);
+        }
         pthread_create(&threads[i], NULL, (void* (*)(void*)) launch_stream, (void *)&(sdata[i]));
-    }
+#else
+        run_stream((void *)&(sdata[i]));
+#endif
 
-    for (int i = 0; i < NUM_STREAMS; i++){
+    }
+#if THREAD
+    for (i = last_joined + 1; i < NUM_STREAMS; i++){
         pthread_join(threads[i], NULL);
     }
-
+#endif
     hipDeviceSynchronize();
     
     blob final_ret;
