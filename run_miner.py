@@ -109,7 +109,7 @@ def main():
             evenDif = difficulty - difficulty % 2
             foundBlob = ""
             foundDif = 0
-            
+
         if foundDif >= difficulty:
             b64 = b64encode(bytes.fromhex(foundBlob)).decode()
             data = {
@@ -169,4 +169,5 @@ def main():
         req_num += 1
 
 if __name__ == "__main__":
+    print(cpen442coinhash("00000000001ab8c561f6ca908e889af8fc4a859b8be476312ca0b1a2816a5fe3", "B0B1B8E4FA7F0000"))
     main()

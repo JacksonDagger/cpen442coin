@@ -21,11 +21,17 @@
 #include "cpen442coin.h"
 
 #define THREAD 0
+#define BLOCKED_STREAMS 0
 
 int main(int argc, char *argv[])
 {
-    time_t start_time = time(0);
+    hipEvent_t start, stop;
+    hipEventCreate(&start);
+    hipEventRecord(start, NULL);
+    hipEventCreate(&stop);
     srand(time(0));
+
+    float eventMs = 1.0f;
     char prec_str[SHA256_STRLEN + 1] = "00000000f02eafab71af360b73b2004fb7d47094468cd87cbff4c330e6f55bad";
     int difficulty = 10;
 
@@ -42,6 +48,26 @@ int main(int argc, char *argv[])
     int i, last_joined;
     last_joined = -1;
 
+#if BLOCKED_STREAMS
+    for (i = 0; i < NUM_STREAMS; i++){
+        hipStreamCreate(&streams[i]);
+        sdata[i].stream = &streams[i];
+        sdata[i].difficulty = 4*difficulty;
+    }
+    for (int x = 0; x < NUM_STREAM_BLOCKS; x++) {
+        for (i = 0; i < NUM_STREAMS; i++){
+            sdata[i].ret.num = 0;
+            memcpy(sdata[i].preceeding, prec_bytes, SHA256_STRLEN);
+            run_stream((void *)&(sdata[i]));
+        }
+
+        for (i = 0; i < NUM_STREAMS; i++){
+            sdata[i].ret.num = 0;
+            memcpy(sdata[i].preceeding, prec_bytes, SHA256_STRLEN);
+            end_stream((void *)&(sdata[i]));
+        }
+    }
+#else
     for (i = 0; i < NUM_STREAMS; i++){
         hipStreamCreate(&streams[i]);
         sdata[i].stream = &streams[i];
@@ -56,15 +82,23 @@ int main(int argc, char *argv[])
         }
         pthread_create(&threads[i], NULL, (void* (*)(void*)) launch_stream, (void *)&(sdata[i]));
 #else
+        if ((i - last_joined) > CONCURRENT_STREAMS) {
+            last_joined += 1;
+            end_stream((void *)&(sdata[last_joined]));
+        }
         run_stream((void *)&(sdata[i]));
 #endif
 
     }
-#if THREAD
     for (i = last_joined + 1; i < NUM_STREAMS; i++){
+#if THREAD
         pthread_join(threads[i], NULL);
+#else
+        end_stream((void *)&(sdata[i]));
+#endif
     }
 #endif
+
     hipDeviceSynchronize();
     
     blob final_ret;
@@ -76,13 +110,16 @@ int main(int argc, char *argv[])
             break;
         }
     }
+    hipEventRecord(stop, NULL);
+    hipEventSynchronize(stop);
+    hipEventElapsedTime(&eventMs, start, stop);
 
     if (final_ret.num) {
         printf("success:");
         print_bytes(final_ret.bytes, BLOB_SIZE);
     }
     else {
-        double hashrate = ((double) RUN_SIZE) / (time(0) - start_time);
+        double hashrate = ((double) RUN_SIZE) / (eventMs/1000);
         printf("hash rate (hps): %.4lf", hashrate);
     }
     return 0;
