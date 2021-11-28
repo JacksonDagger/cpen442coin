@@ -5,7 +5,6 @@ import subprocess
 from datetime import datetime, timedelta
 from time import sleep
 import json
-import sys
 from Crypto.Hash import SHA256
 
 miner_id = "e8d2dadb3c5ead451b8943cff5ef909ef0f3de313c4d274d85d2d3c8a5a30c1f"
@@ -46,7 +45,7 @@ def printLogStr(log):
 
 def logEvent(dumpfileName, eventType, details):
     eventDetails = {}
-    eventDetails["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H-%M-%S")
+    eventDetails["timestamp"] = datetime.now().strftime("%Y-%m-%d--%H-%M-%S")
     eventDetails["eventType"] = eventType
     eventDetails["details"] = details
 
@@ -57,9 +56,9 @@ def logEvent(dumpfileName, eventType, details):
 
 def main():
     binpath = "./bin/gpuminer-hip"
-    logfileName = "logs/coin442tries" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
-    coinlogfileName = "logs/coin442mines" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
-    dumpfileName = "logs/logdump" + datetime.now().strftime("%Y-%d-%m--%H-%M-%S") + ".log"
+    logfileName = "logs/coin442tries" + datetime.now().strftime("%Y-%m-%d--%H-%M-%S") + ".log"
+    coinlogfileName = "logs/coin442mines" + datetime.now().strftime("%Y-%m-%d--%H-%M-%S") + ".log"
+    dumpfileName = "logs/logdump" + datetime.now().strftime("%Y-%m-%d--%H-%M-%S") + ".log"
     coinNumFilename = "logs/coinsmined.json"
 
     log = {}
@@ -80,11 +79,11 @@ def main():
 
     contestEnd = datetime(2021, 12, 1, 21, 0, 0)
 
-    lastCoin = "00000000002dee43c5ded98ccf60d2e7981030d96091325844b0b9d29e8e4278"
+    lastCoin = "000000000039f30c6e714e3e4551f91cebea6cbbf42a0cbc0df4ea5d2c48debc"
     evenDif = 8
     difficulty = 10
-    foundBlob = ""
-    foundDif = 0
+    foundBlob = "94082EDD8B3C9306"
+    foundDif = 10
     lastCoinTime = 0
     period = 60*60
 
@@ -123,13 +122,13 @@ def main():
                 #logEvent(dumpfileName, "sleep", str(wait))
                 #sleep(wait)
                 pass
-            response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
+            response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', json = data)
             
             log["coinsmined"] += 1
 
             data["code"] = response.status_code
             data["coinsmined"] = log["coinsmined"]
-            data["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
+            data["timestamp"] = datetime.now().strftime("%Y-%m-%d--%H:%M:%S")
 
             with open(coinlogfileName, "a") as coinlogfile:
                 coinlogfile.write(json.dumps(data))
@@ -158,7 +157,7 @@ def main():
                 foundDif = newFoundDif
                 foundBlob = newFoundBlob
             
-            if newFoundDif < evenDif:
+            if newFoundDif < 9: # evenDif:
                 blobLog = log
                 blobLog["foundBlob"] = foundBlob
                 blobLog["foundDif"] = foundDif
@@ -174,7 +173,7 @@ def main():
         log["foundDif"] = foundDif
 
         with open(logfileName, "a") as logfile:
-            log["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
+            log["timestamp"] = datetime.now().strftime("%Y-%m-%d--%H:%M:%S")
             logfile.write(json.dumps(log))
             logfile.write("\n")
 
