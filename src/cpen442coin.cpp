@@ -34,6 +34,71 @@
     #define LOC __host__
 #endif
 
+__host__ void launch_stream(void *arg)
+{
+    struct stream_data *sdata=(struct stream_data *)arg;
+    blob ret;
+    uint64_t init;
+
+    init = ((uint64_t) rand() << RAND_SHIFT);
+
+    BYTE *ret_bytes;
+    BYTE *prec_bytes;
+
+    hipMalloc((void**)&ret_bytes, BLOB_SIZE);
+    hipMalloc((void**)&prec_bytes, SHA256_STRLEN);
+    hipMemcpy(ret_bytes, sdata->ret.bytes, BLOB_SIZE, hipMemcpyHostToDevice);
+    hipMemcpy(prec_bytes, sdata->preceeding, SHA256_STRLEN, hipMemcpyHostToDevice);
+
+    hipLaunchKernelGGL(cpen442coin_kernel, dim3(BLOCKS, BLOCKS), dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y),
+        0, *(sdata->stream), init, sdata->difficulty, prec_bytes, ret_bytes);
+
+    hipStreamSynchronize(*(sdata->stream));
+
+    hipMemcpy(sdata->ret.bytes, ret_bytes, BLOB_SIZE, hipMemcpyDeviceToHost);
+
+    hipFree(ret_bytes);
+    hipFree(prec_bytes);
+}
+
+__global__ void 
+cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYTE* res) 
+{ 
+    init += (((THREADS_PER_BLOCK_X * hipBlockIdx_x + hipThreadIdx_x) << WIDTH_SHIFT) + THREADS_PER_BLOCK_Y * hipBlockIdx_y + hipThreadIdx_y) << BATCH_SHIFT;
+    union blob test_blob;
+    test_blob.num = init;
+
+    SHA256_CTX start_ctx, test_ctx;
+
+    sha256_init(&start_ctx);
+    sha256_update(&start_ctx, (BYTE *) COIN_PREF1, COIN_PREF1_LEN);
+    sha256_update(&start_ctx, (BYTE *) COIN_PREF2, COIN_PREF2_LEN);
+    sha256_update(&start_ctx, prec, SHA256_STRLEN);
+    
+    BYTE test_hash[SHA256_BLOCK_SIZE];
+    BYTE miner_id[MINER_ID_LEN+1] = ID_OF_MINER;
+
+    for (int i = 0; i < GPU_BATCHSIZE; i++)
+    {
+        test_ctx = start_ctx;
+        test_blob.num += 1;
+
+        sha256_update(&test_ctx, test_blob.bytes, BLOB_LEN);
+        sha256_update(&test_ctx, miner_id, MINER_ID_LEN);
+
+        sha256_final(&test_ctx, test_hash);
+        
+        if(!check_hash(test_hash, difficulty))
+        {
+            for (int j = 0; j < BLOB_SIZE; j++){
+                res[j] = test_blob.bytes[j];
+            }
+            return;
+        }
+    }
+    return;
+}
+
 /*
  * Function: find_long_blob
  * ----------------------------
@@ -97,44 +162,6 @@ __host__ void find_long_blob(void *arg)
         }
     }
     tdata->res = i > 0? i : 1;
-    return;
-}
-
-__global__ void 
-cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYTE* res) 
-{ 
-    init += (((THREADS_PER_BLOCK_X * hipBlockIdx_x + hipThreadIdx_x) << WIDTH_SHIFT) + THREADS_PER_BLOCK_Y * hipBlockIdx_y + hipThreadIdx_y) << BATCH_SHIFT;
-    union blob test_blob;
-    test_blob.num = init;
-
-    SHA256_CTX start_ctx, test_ctx;
-
-    sha256_init(&start_ctx);
-    sha256_update(&start_ctx, (BYTE *) COIN_PREF1, COIN_PREF1_LEN);
-    sha256_update(&start_ctx, (BYTE *) COIN_PREF2, COIN_PREF2_LEN);
-    sha256_update(&start_ctx, prec, SHA256_STRLEN);
-    
-    BYTE test_hash[SHA256_BLOCK_SIZE];
-    BYTE miner_id[MINER_ID_LEN+1] = ID_OF_MINER;
-
-    for (int i = 0; i < GPU_BATCHSIZE; i++)
-    {
-        test_ctx = start_ctx;
-        test_blob.num += 1;
-
-        sha256_update(&test_ctx, test_blob.bytes, BLOB_LEN);
-        sha256_update(&test_ctx, miner_id, MINER_ID_LEN);
-
-        sha256_final(&test_ctx, test_hash);
-        
-        if(!check_hash(test_hash, difficulty))
-        {
-            for (int j = 0; j < BLOB_SIZE; j++){
-                res[j] = test_blob.bytes[j];
-            }
-            return;
-        }
-    }
     return;
 }
 

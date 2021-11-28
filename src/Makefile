@@ -36,6 +36,10 @@ gpu: ${GPUMINER_BIN}
 
 cpu: ${CPUMINER_BIN}
 
+gpu_debug: ${GPUMINER_OBJ}
+	mkdir -p ${BIN_DIR}
+	${HIPCC} -g ${LDFLAGS} -o ${GPUMINER_BIN} ${GPUMINER_OBJ}
+
 ${GPUMINER_BIN}: ${GPUMINER_OBJ}
 	mkdir -p ${BIN_DIR}
 	${HIPCC} ${LDFLAGS} -o ${GPUMINER_BIN} ${GPUMINER_OBJ}

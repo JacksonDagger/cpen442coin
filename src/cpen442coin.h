@@ -7,6 +7,7 @@
 *********************************************************************/
 
 #include "sha256.h"
+#include "hip/hip_runtime.h"
 #include <stdint.h>
 
 #define BLOB_SIZE 8
@@ -14,22 +15,24 @@
 
 #define ID_OF_MINER "e8d2dadb3c5ead451b8943cff5ef909ef0f3de313c4d274d85d2d3c8a5a30c1f"
 
-#define BLOCK_SHIFT 7
-#define BLOCKS (1 << BLOCK_SHIFT) // 256
+#define BLOCK_SHIFT 8
+#define BLOCKS (1 << BLOCK_SHIFT) // 64
 
-#define XTHREAD_SHIFT 3
+#define XTHREAD_SHIFT 1
 #define THREADS_PER_BLOCK_X (1 << XTHREAD_SHIFT) // 16
 
-#define YTHREAD_SHIFT 3
+#define YTHREAD_SHIFT 1
 #define THREADS_PER_BLOCK_Y (1 << YTHREAD_SHIFT) // 8
 
-#define BATCH_SHIFT 10
+#define BATCH_SHIFT 12
 #define GPU_BATCHSIZE (1 << BATCH_SHIFT) // 256
 
 #define WIDTH_SHIFT (BLOCK_SHIFT + YTHREAD_SHIFT) // 11
 #define RAND_SHIFT (BATCH_SHIFT + WIDTH_SHIFT + BLOCK_SHIFT + XTHREAD_SHIFT) // 31
 
-#define RUN_SIZE BLOCKS*BLOCKS*GPU_BATCHSIZE*THREADS_PER_BLOCK_X*THREADS_PER_BLOCK_Y
+#define NUM_STREAMS 8
+
+#define RUN_SIZE NUM_STREAMS*BLOCKS*BLOCKS*GPU_BATCHSIZE*THREADS_PER_BLOCK_X*THREADS_PER_BLOCK_Y
 
 union blob {
     BYTE bytes[BLOB_SIZE]; 
@@ -44,9 +47,17 @@ typedef struct thread_data {
     unsigned int difficulty;
     unsigned long max;
     unsigned int res;
-} thead_data;
+} thread_data;
+
+typedef struct stream_data {
+    hipStream_t *stream;
+    blob ret;
+    BYTE preceeding[SHA256_STRLEN];
+    unsigned int difficulty;
+} stream_data;
 
 __device__ __host__ unsigned long check_hash(const BYTE hash[], unsigned int difficulty);
 __host__ void find_long_blob(void *arg);
+__host__ void launch_stream(void *arg);
 __global__ void  cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYTE* res);
 __host__ void print_bytes(BYTE bytes[], unsigned long len);
