@@ -37,11 +37,11 @@ int main(int argc, char *argv[])
 
     srand(time(0));
     char prec_str[SHA256_STRLEN + 1] = "00000000f02eafab71af360b73b2004fb7d47094468cd87cbff4c330e6f55bad";
-    int difficulty = 10;
+    int difficulty = 8;
 
     memcpy(prec_str, argv[1], SHA256_STRLEN);
     char *a = argv[2];
-    difficulty = atoi(a);
+    // difficulty = atoi(a);
    
     BYTE prec_bytes[SHA256_STRLEN];
     memcpy(prec_bytes, prec_str, SHA256_STRLEN);

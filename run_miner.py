@@ -37,11 +37,12 @@ def strRound(num, digits):
 def printLogStr(log):
     outstr = "hashrate (Mh/s):" +strRound(log["hashrate"]/1000000, 2) + \
         ", coinrate (c/h):" + strRound(log["coinrate"], 4) + \
-        ", predcoins:" + str(round(log["predcoins"])) + \
+        ", predcoins:" + strRound(log["predcoins"], (2 if log["coinrate"] < 0.2 else 1)) + \
         ", coinsmined:" + str(log["coinsmined"]) + \
-        ", dif:" + str(log["difficulty"])
-    sys.stdout.flush()
-    print(outstr, end='\r')
+        ", dif:" + str(log["difficulty"]) + \
+        ", fdif:" + str(log["foundDif"])
+    #sys.stdout.flush()
+    print(outstr) #, end='\r')
 
 def logEvent(dumpfileName, eventType, details):
     eventDetails = {}
@@ -119,8 +120,9 @@ def main():
 
             wait = period - (datetime.now().timestamp() - lastCoinTime)
             if wait > 0:
-                logEvent(dumpfileName, "sleep", str(wait))
-                sleep(wait)
+                #logEvent(dumpfileName, "sleep", str(wait))
+                #sleep(wait)
+                pass
             response = requests.post('http://cpen442coin.ece.ubc.ca/claim_coin', data = data)
             
             log["coinsmined"] += 1
@@ -132,22 +134,31 @@ def main():
             with open(coinlogfileName, "a") as coinlogfile:
                 coinlogfile.write(json.dumps(data))
                 coinlogfile.write("\n")
-            with open(coinNumFilename, "w") as coinNumFile:
-                json.dump(coinNumFile, {"coinsmined": log["coinsmined"]})
+            try:
+                with open(coinNumFilename, "w") as coinNumFile:
+                    coindict = {"coinsmined": log["coinsmined"]}
+                    json.dump(coinNumFile, coindict)
+            except:
+                pass
 
         log["lastcoin"] = lastCoin
         log["difficulty"] = difficulty
         log["evenDif"] = evenDif
 
-        args = [binpath, lastCoin, str(evenDif)]
+        # args = [binpath, lastCoin, str(evenDif)]
+        args = [binpath, lastCoin]
         output = subprocess.run(args, capture_output=True)
         ret = output.stdout.decode()
 
         if "success:" in ret:
-            foundBlob = ret[len("success:"):]
-            foundDif = difficulty_check(lastCoin, foundBlob)
+            newFoundBlob = ret[len("success:"):]
+            newFoundDif = difficulty_check(lastCoin, newFoundBlob)
+
+            if newFoundDif > foundDif:
+                foundDif = newFoundDif
+                foundBlob = newFoundBlob
             
-            if foundDif < evenDif:
+            if newFoundDif < evenDif:
                 blobLog = log
                 blobLog["foundBlob"] = foundBlob
                 blobLog["foundDif"] = foundDif
@@ -158,7 +169,10 @@ def main():
             log["coinrate"] = 60*60*log["hashrate"]/(2**(4*difficulty))
             hoursLeft = (contestEnd - datetime.now()) / timedelta(hours=1)
             log["predcoins"] = hoursLeft*log["coinrate"]
-        
+
+        log["foundBlob"] = foundBlob
+        log["foundDif"] = foundDif
+
         with open(logfileName, "a") as logfile:
             log["timestamp"] = datetime.now().strftime("%Y-%d-%m--%H:%M:%S")
             logfile.write(json.dumps(log))

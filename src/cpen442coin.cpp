@@ -46,9 +46,13 @@ __host__ void launch_stream(void *arg)
     hipMalloc((void**)&(sdata->prec_dev), SHA256_STRLEN);
     hipMemcpy((sdata->ret_dev), sdata->ret.bytes, BLOB_SIZE, hipMemcpyHostToDevice);
     hipMemcpy((sdata->prec_dev), sdata->preceeding, SHA256_STRLEN, hipMemcpyHostToDevice);
-
+#ifdef STATIC_DIF
+    hipLaunchKernelGGL(cpen442coin_kernel, dim3(XBLOCKS, YBLOCKS), dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y),
+        0, *(sdata->stream), init, (sdata->prec_dev), (sdata->ret_dev));
+#else
     hipLaunchKernelGGL(cpen442coin_kernel, dim3(XBLOCKS, YBLOCKS), dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y),
         0, *(sdata->stream), init, sdata->difficulty, (sdata->prec_dev), (sdata->ret_dev));
+#endif
 }
 
 
@@ -69,8 +73,13 @@ __host__ void run_stream(void *arg)
     end_stream(arg);
 }
 
+#ifdef STATIC_DIF
+__global__ void 
+cpen442coin_kernel(uint64_t init, const BYTE* prec, BYTE* res) 
+#else
 __global__ void 
 cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYTE* res) 
+#endif
 { 
     init += (((THREADS_PER_BLOCK_X * hipBlockIdx_x + hipThreadIdx_x) << WIDTH_SHIFT) + THREADS_PER_BLOCK_Y * hipBlockIdx_y + hipThreadIdx_y) << BATCH_SHIFT;
     union blob test_blob;
@@ -95,7 +104,17 @@ cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYT
         sha256_update(&test_ctx, miner_id, MINER_ID_LEN);
 
         sha256_final(&test_ctx, test_hash);
-        
+#ifdef STATIC_DIF
+        if(!check_hash(test_hash, SDIF_EVEN))
+        {
+            if (get_dif(test_hash) >= STATIC_DIF){
+                for (int j = 0; j < BLOB_SIZE; j++){
+                    res[j] = test_blob.bytes[j];
+                }
+                return;
+            }
+        }
+#else
         if(!check_hash(test_hash, difficulty))
         {
             for (int j = 0; j < BLOB_SIZE; j++){
@@ -103,6 +122,7 @@ cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYT
             }
             return;
         }
+#endif
     }
     return;
 }
@@ -190,6 +210,28 @@ __device__ __host__ unsigned long check_hash(const BYTE hash[], unsigned int dif
     mask -= 1;
     unsigned long check_bits = *((unsigned long*) hash); // works on little endian systems only (ie x86)
     return check_bits & mask;
+}
+
+/*
+ * Function: get_dif
+ * ----------------------------
+ *   Check if given hash output satisfies difficulty requirement
+ *
+ *   hash: the given SHA256 hash (assumed to be 256 bits long)
+ *   difficulty: the difficulty level of cpen442coin (ie twice the number of bytes that must be 0 at the start of the hash) (<= 32)
+ *
+ *   returns: 0 if successful
+ */
+__host__ __device__ unsigned int get_dif(const BYTE hash[])
+{
+    unsigned int dif = 0;
+    for(; dif < SHA256_STRLEN; dif+= 2){
+        if (hash[dif/2]) {
+            break;
+        } 
+    }
+    if (hash[dif/2] < 0x10) dif ++;
+    return dif;
 }
 
 /*

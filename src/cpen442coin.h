@@ -16,6 +16,11 @@
 #define ID_OF_MINER "e8d2dadb3c5ead451b8943cff5ef909ef0f3de313c4d274d85d2d3c8a5a30c1f"
 
 #define PERF 1
+#define STATIC_DIF 9
+#ifdef STATIC_DIF
+    #define SDIF_EVEN 8
+    #define SDIF_MASK ((1 << SDIF_EVEN) - 1)
+#endif
 
 #define XBLOCK_SHIFT 8
 #define XBLOCKS (1 << XBLOCK_SHIFT) // 256
@@ -69,5 +74,10 @@ __host__ void find_long_blob(void *arg);
 __host__ void run_stream(void *arg);
 __host__ void launch_stream(void *arg);
 __host__ void end_stream(void *arg);
+#ifdef STATIC_DIF
+__global__ void cpen442coin_kernel(uint64_t init, const BYTE* prec, BYTE* res);
+#else
 __global__ void  cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYTE* res);
+#endif
 __host__ void print_bytes(BYTE bytes[], unsigned long len);
+__host__ __device__ unsigned int get_dif(const BYTE hash[]);
