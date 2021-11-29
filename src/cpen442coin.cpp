@@ -24,7 +24,12 @@
 #define COIN_PREF1_LEN  13
 #define COIN_PREF2_LEN  4
 
+#define COIN_PREF "CPEN 442 Coin2021"
+#define COIN_PREF_LEN  17
+
 #define MINER_ID_LEN SHA256_STRLEN
+
+#define DIF8(ctx) (!(ctx.state[0]))
 
 #ifdef GPU_CODE
     #define MEMCPY(dest, src, len) hipMemcpyDtoD(dest, src, len)
@@ -85,15 +90,13 @@ cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYT
     union blob test_blob;
     test_blob.num = init;
 
+    BYTE test_hash[SHA256_BLOCK_SIZE];
+    BYTE miner_id[MINER_ID_LEN+1] = ID_OF_MINER;
     SHA256_CTX start_ctx, test_ctx;
 
     sha256_init(&start_ctx);
-    sha256_update(&start_ctx, (BYTE *) COIN_PREF1, COIN_PREF1_LEN);
-    sha256_update(&start_ctx, (BYTE *) COIN_PREF2, COIN_PREF2_LEN);
+    sha256_update(&start_ctx, (BYTE *) COIN_PREF, COIN_PREF_LEN);
     sha256_update(&start_ctx, prec, SHA256_STRLEN);
-    
-    BYTE test_hash[SHA256_BLOCK_SIZE];
-    BYTE miner_id[MINER_ID_LEN+1] = ID_OF_MINER;
 
     for (int i = 0; i < GPU_BATCHSIZE; i++)
     {
@@ -103,10 +106,11 @@ cpen442coin_kernel(uint64_t init, unsigned int difficulty, const BYTE* prec, BYT
         sha256_update(&test_ctx, test_blob.bytes, BLOB_LEN);
         sha256_update(&test_ctx, miner_id, MINER_ID_LEN);
 
-        sha256_final(&test_ctx, test_hash);
 #ifdef STATIC_DIF
-        if(!check_hash(test_hash, SDIF_EVEN))
+        sha256_final_compute(&test_ctx);
+        if(DIF8(test_ctx))
         {
+            sha256_final_hash(&test_ctx, test_hash);
             if (get_dif(test_hash) >= STATIC_DIF){
                 for (int j = 0; j < BLOB_SIZE; j++){
                     res[j] = test_blob.bytes[j];

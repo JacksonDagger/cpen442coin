@@ -158,14 +158,14 @@ def main():
             if partwait > 122:
                 partwait = 122
             partwait -= 2
-            if partwait > 0:
-                logEvent(dumpfileName, "high dif sleep ", "total: " + str(wait) + ", interval: " + str(partwait))
-                print("sleeping " + str(partwait) + " with total expected wait of: " + str(wait))
-                sleep(partwait)
-            if wait >= 0:
-                continue
+            if wait < 240:
+                if partwait > 0:
+                    logEvent(dumpfileName, "high dif sleep ", "total: " + str(wait) + ", interval: " + str(partwait))
+                    print("sleeping " + str(partwait) + " with total expected wait of: " + str(wait))
+                    sleep(partwait)
+                if wait >= -60*60:
+                    continue
 
-        # args = [binpath, lastCoin, str(evenDif)]
         args = [binpath, log["lastCoin"]]
         output = subprocess.run(args, capture_output=True)
         ret = output.stdout.decode()

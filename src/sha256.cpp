@@ -113,6 +113,12 @@ __device__ __host__ void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_
 
 __device__ __host__ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 {
+	sha256_final_compute(ctx);
+	sha256_final_hash(ctx, hash);
+}
+
+__device__ __host__ void sha256_final_compute(SHA256_CTX *ctx)
+{
 	WORD i;
 
 	i = ctx->datalen;
@@ -145,7 +151,11 @@ __device__ __host__ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 	ctx->data[57] = ctx->bitlen >> 48;
 	ctx->data[56] = ctx->bitlen >> 56;
 	sha256_transform(ctx, ctx->data);
+}
 
+__device__ __host__ void sha256_final_hash(SHA256_CTX *ctx, BYTE hash[])
+{
+	WORD i;
 	// Since this implementation uses little endian byte ordering and SHA uses big endian,
 	// reverse all the bytes when copying the final state to the output hash.
 	for (i = 0; i < 4; ++i) {

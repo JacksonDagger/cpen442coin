@@ -30,5 +30,7 @@ typedef struct {
 __device__ __host__ void sha256_init(SHA256_CTX *ctx);
 __device__ __host__ void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len);
 __device__ __host__ void sha256_final(SHA256_CTX *ctx, BYTE hash[]);
+__device__ __host__ void sha256_final_compute(SHA256_CTX *ctx);
+__device__ __host__ void sha256_final_hash(SHA256_CTX *ctx, BYTE hash[]);
 
 #endif   // SHA256_H
